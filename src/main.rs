@@ -1,19 +1,74 @@
-fn main() {
+use std::fs::read_to_string;
+use clap::Parser;
 
-    let input = [
-        "         //F|F1 |F2 |F3 |F4 |F5 | __ | __ | __ | __ | | __ | __ | __ | __ |F6 |F7 |F8 |F9 |F10|",
-        "         //N|F11| 1 | 2 | 3 | 4 | 5  | __ | __ | __ | | __ | __ | __ |  6 | 7 | 8 | 9 | 0 |F12|",
-        "         // |   | Q | W | E | R | T  | __ | __ | __ | | __ | __ | __ |  Y | U | I | O | P |   |",
-        "         //>|   | A | S | D | F | G  | __ | __ | __ | | __ | __ | __ |  H | J | K | L | - |   |",
-        "         // |   | Z | X | C | V | B  | Esc|Ctrl|LAlt| |NUMB|Ctrl|Ret |  N | M | , | . | / |   |",
-        "         //L|Mag|Hom|End|Lft|Rgt| __ |SYMB|Shft|GERM| |Ins |Bksp|Spce| __ |Dwn|Up |PDn|PUp|Sys|",
-    ];
+/// Simple program to greet a person
+#[derive(Parser, Debug)]
+struct Args {
+    /// Number of times to greet
+    #[clap(short, long, default_value = "1")]
+    max: u8,
 
-    let label = "DEFAULT";
-    print_layout(label, input.to_vec());
+    #[clap(last = true)]
+    extra_args: Vec<String>,
 }
 
-fn print_layout(label: &str, input: Vec<&str>){
+
+fn main() {
+
+    let filename = "/workspace/config/config/glove80.keymap";
+    // Iterator over each line in the file
+    let file = read_to_string(filename) 
+        .unwrap();  // panic on possible file-reading errors
+
+    let mut processing = false;
+    let mut current = Layout {label : "", keys : vec![]};
+    let mut layouts : Vec<Layout> = vec![];
+     
+    for line in file.lines() {
+        if !processing && 
+        line.trim_start().starts_with("//") &&
+        line.trim().chars().all(|c| c.is_uppercase() || c.is_whitespace() || c == '/')
+        {
+            processing = true;
+            current.label = line.trim_matches(|c| c == ' ' || c == '/');
+        }
+        else if processing && line.trim().chars().nth(3).unwrap_or(' ') == '|'
+        {
+            current.keys.push(line.trim());
+        }else if processing {
+            processing = false;
+            if current.keys.len() >= 6 {
+                layouts.push(current.clone());
+                print_layout(current.clone());
+            }
+
+            current.keys = vec![];
+        }
+    }
+
+    // Find the line starting with "//" and containing only uppercase letters or whitespace
+    let label = file.lines().find(|line|
+        line.trim_start().starts_with("//") &&
+        line.trim().chars().all(|c| c.is_uppercase() || c.is_whitespace() || c == '/')
+    ).unwrap().trim().trim_start_matches("// ");
+
+    let input : Vec<&str> = file.lines()
+        .map(|line| line.trim())
+        .filter(|line| line.chars().nth(3).unwrap_or(' ') == '|')
+        .collect();
+
+    //print_layout(label, input.to_vec());
+}
+
+#[derive(Clone)]
+struct Layout<'a> {
+    label: &'a str,
+    keys: Vec<&'a str>,
+}
+
+fn print_layout(layout : Layout){
+    let label = layout.label;
+    let input = layout.keys;
     let label_index = 41 - label.len() / 2;
 
     for i in 0..13 {
@@ -23,7 +78,7 @@ fn print_layout(label: &str, input: Vec<&str>){
                 print!("{}", label.trim().chars().nth(c - label_index).unwrap_or(' '));
             } else if i % 2 == 1 && templ == '.' {
                 let row = input[i / 2].trim();
-                let inp = row.chars().nth(c + 3).unwrap();
+                let inp = row.chars().nth(c + 3).unwrap_or('?');
                 print!("{}", inp);
             } else {
                 print!("{}", templ);
