@@ -4,6 +4,11 @@ Read .keymap file for the glove80 and visualize the keyboard.
 
 ![demo](demo.png)
 
+## .keymap file
+
+The .keymap file has to contain the layouts in a specific format.
+See [f0i/glove80](https://github.com/f0i/glove80) for an example file.
+
 ## Options
 
 ```bash
