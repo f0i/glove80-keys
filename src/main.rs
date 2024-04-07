@@ -1,29 +1,35 @@
 use std::fs::read_to_string;
 use clap::Parser;
 
-/// Simple program to greet a person
+/// Keymap viewer for the glove80
 #[derive(Parser, Debug)]
 struct Args {
-    /// Number of times to greet
-    #[clap(short, long, default_value = "1")]
-    max: u8,
+    /// Specify the .keymap file to read the layout
+    #[clap(short, long, default_value = "../config/config/glove80.keymap")]
+    file: String,
 
-    #[clap(last = true)]
-    extra_args: Vec<String>,
+    /// One or multiple names of the layout to show.
+    /// If no filter is specified, the default layout will be shown.
+    /// Can be substrings of the actual name (e.g. sym for SYMBOLS)
+    #[clap(takes_value = true, multiple = true)]
+    filter: Vec<String>,
 }
 
 
 fn main() {
+    
+    let mut args = Args::parse();
+    if args.filter.is_empty() {
+        args.filter.push("default".to_string());
+    };
 
-    let filename = "/workspace/config/config/glove80.keymap";
-    // Iterator over each line in the file
-    let file = read_to_string(filename) 
+    let file = read_to_string(args.file) 
         .unwrap();  // panic on possible file-reading errors
 
     let mut processing = false;
     let mut current = Layout {label : "", keys : vec![]};
     let mut layouts : Vec<Layout> = vec![];
-     
+
     for line in file.lines() {
         if !processing && 
         line.trim_start().starts_with("//") &&
@@ -37,7 +43,8 @@ fn main() {
             current.keys.push(line.trim());
         }else if processing {
             processing = false;
-            if current.keys.len() >= 6 {
+            let m = args.filter.iter().find(|f|current.label.to_lowercase().contains(&**f));
+            if current.keys.len() >= 6 && m.is_some() {
                 layouts.push(current.clone());
                 print_layout(current.clone());
             }
@@ -45,19 +52,6 @@ fn main() {
             current.keys = vec![];
         }
     }
-
-    // Find the line starting with "//" and containing only uppercase letters or whitespace
-    let label = file.lines().find(|line|
-        line.trim_start().starts_with("//") &&
-        line.trim().chars().all(|c| c.is_uppercase() || c.is_whitespace() || c == '/')
-    ).unwrap().trim().trim_start_matches("// ");
-
-    let input : Vec<&str> = file.lines()
-        .map(|line| line.trim())
-        .filter(|line| line.chars().nth(3).unwrap_or(' ') == '|')
-        .collect();
-
-    //print_layout(label, input.to_vec());
 }
 
 #[derive(Clone)]
@@ -106,3 +100,4 @@ fn get_template_char(r:usize, c: usize) -> char{
     ];
     return template[r].nth(c).unwrap();
 }
+
